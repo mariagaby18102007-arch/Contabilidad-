@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Financiero del Hogar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="h-full text-slate-800 antialiased flex flex-col md:flex-row min-h-screen bg-slate-50">
+
+    <!-- Sidebar / Navegación -->
+    <aside class="w-full md:w-64 bg-slate-900 text-white flex-shrink-0 border-r border-slate-800 flex flex-col justify-between">
+        <div>
+            <!-- Header App -->
+            <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-emerald-500 p-2 rounded-xl text-slate-900 font-bold">
+                        <i class="fa-solid font-black fa-wallet text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight">HogarFinanzas</h1>
+                        <p class="text-xs text-slate-400">Git + Supabase Stack</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Menú de Navegación -->
+            <nav class="p-4 space-y-1">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition text-emerald-400 bg-slate-800 font-medium">
+                    <i class="fa-solid fa-chart-pie w-5"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button onclick="switchTab('transactions')" id="nav-transactions" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition text-slate-400 hover:bg-slate-800 hover:text-slate-200 font-medium">
+                    <i class="fa-solid fa-list-check w-5"></i>
+                    <span>Transacciones</span>
+                </button>
+                <button onclick="switchTab('budgets')" id="nav-budgets" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition text-slate-400 hover:bg-slate-800 hover:text-slate-200 font-medium">
+                    <i class="fa-solid fa-piggy-bank w-5"></i>
+                    <span>Presupuestos y Ahorro</span>
+                </button>
+                <button onclick="switchTab('config')" id="nav-config" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition text-slate-400 hover:bg-slate-800 hover:text-slate-200 font-medium">
+                    <i class="fa-solid fa-plug w-5"></i>
+                    <span>Conexión Supabase/Git</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- Info Estado Conexión -->
+        <div class="p-4 border-t border-slate-800">
+            <div id="connection-status" class="flex items-center space-x-3 p-3 bg-slate-800/50 rounded-lg text-xs">
+                <span class="relative flex h-3 w-3">
+                  <span id="status-ping" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span id="status-dot" class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                </span>
+                <div>
+                    <p id="status-title" class="font-semibold text-slate-300">Modo Local (Demo)</p>
+                    <p id="status-sub" class="text-slate-500">Conecta Supabase para sync</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Contenido Principal -->
+    <main class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8">
+
+        <!-- Banner Alerta Conexión -->
+        <div id="demo-mode-alert" class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-800 shadow-sm">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-circle-info text-amber-600 text-xl flex-shrink-0"></i>
+                <div class="text-sm">
+                    <span class="font-semibold">Estás usando el almacenamiento local del navegador.</span>
+                    <p class="text-amber-700 text-xs mt-0.5">Para sincronizar con Supabase y desplegar en GitHub, dirígete a la pestaña "Conexión Supabase/Git".</p>
+                </div>
+            </div>
+            <button onclick="switchTab('config')" class="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold hover:bg-amber-700 transition flex-shrink-0">
+                Configurar Supabase
+            </button>
+        </div>
+
+        <!-- ==================== PESTAÑA: DASHBOARD ==================== -->
+        <section id="tab-dashboard" class="space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Resumen Financiero</h2>
+                    <p class="text-slate-500 text-sm">Visión general de tus ingresos, gastos y balance del hogar.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="openModalTransaction()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-xl shadow-sm transition flex items-center space-x-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Nueva Transacción</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tarjetas KPIs -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Saldo Disponible</span>
+                        <div class="p-2 bg-slate-100 rounded-xl text-slate-600">
+                            <i class="fa-solid fa-scale-balanced"></i>
+                        </div>
+                    </div>
+                    <div id="kpi-balance" class="text-2xl font-bold text-slate-900">$0.00</div>
+                    <span id="kpi-balance-subtitle" class="text-xs text-slate-500 mt-1 block">Balance total acumulado</span>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Ingresos Totales</span>
+                        <div class="p-2 bg-emerald-50 rounded-xl text-emerald-600">
+                            <i class="fa-solid fa-arrow-trend-up"></i>
+                        </div>
+                    </div>
+                    <div id="kpi-incomes" class="text-2xl font-bold text-emerald-600">$0.00</div>
+                    <span class="text-xs text-slate-400 mt-1 block">Total de entradas recibidas</span>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Gastos Totales</span>
+                        <div class="p-2 bg-rose-50 rounded-xl text-rose-600">
+                            <i class="fa-solid fa-arrow-trend-down"></i>
+                        </div>
+                    </div>
+                    <div id="kpi-expenses" class="text-2xl font-bold text-rose-600">$0.00</div>
+                    <span class="text-xs text-slate-400 mt-1 block">Total de salidas registradas</span>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 mb-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider">Tasa de Ahorro</span>
+                        <div class="p-2 bg-indigo-50 rounded-xl text-indigo-600">
+                            <i class="fa-solid fa-piggy-bank"></i>
+                        </div>
+                    </div>
+                    <div id="kpi-savings-rate" class="text-2xl font-bold text-indigo-600">0%</div>
+                    <span class="text-xs text-slate-400 mt-1 block">Porcentaje de ingresos ahorrado</span>
+                </div>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Gráfico de Gastos por Categoría -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-slate-800">Gastos por Categoría</h3>
+                        <span class="text-xs text-slate-400">Distribución global</span>
+                    </div>
+                    <div class="relative flex-1 flex items-center justify-center min-h-[260px]">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Comparación Mensual Ingresos vs Gastos -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-slate-800">Ingresos vs Gastos</h3>
+                        <span class="text-xs text-slate-400">Comparativa general</span>
+                    </div>
+                    <div class="relative flex-1 flex items-center justify-center min-h-[260px]">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Últimas Transacciones -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-slate-800">Últimos Movimientos</h3>
+                    <button onclick="switchTab('transactions')" class="text-xs text-emerald-600 font-semibold hover:underline">Ver todas</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-50 text-xs text-slate-400 uppercase font-semibold">
+                            <tr>
+                                <th class="p-3 rounded-l-lg">Fecha</th>
+                                <th class="p-3">Categoría</th>
+                                <th class="p-3">Descripción</th>
+                                <th class="p-3 text-right rounded-r-lg">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-transactions-list" class="divide-y divide-slate-100">
+                            <!-- Inyectado mediante JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== PESTAÑA: TRANSACCIONES ==================== -->
+        <section id="tab-transactions" class="space-y-6 hidden">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Registro de Transacciones</h2>
+                    <p class="text-slate-500 text-sm">Gestiona y filtra tus movimientos financieros.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="openModalTransaction()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm rounded-xl shadow-sm transition flex items-center space-x-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Agregar Transacción</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">
+                <div class="w-full md:w-1/3 relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="filter-search" oninput="renderTransactionsTable()" placeholder="Buscar por descripción..." class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                <div class="flex flex-wrap sm:flex-nowrap gap-2 w-full md:w-auto">
+                    <select id="filter-type" onchange="renderTransactionsTable()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                        <option value="all">Todos los tipos</option>
+                        <option value="ingreso">Ingresos</option>
+                        <option value="gasto">Gastos</option>
+                    </select>
+                    <select id="filter-category" onchange="renderTransactionsTable()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-emerald-500">
+                        <option value="all">Todas las categorías</option>
+                        <!-- Inyectado dinámicamente -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tabla de Transacciones -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-50 text-xs text-slate-500 uppercase font-semibold border-b border-slate-200">
+                            <tr>
+                                <th class="p-4">Fecha</th>
+                                <th class="p-4">Tipo</th>
+                                <th class="p-4">Categoría</th>
+                                <th class="p-4">Descripción</th>
+                                <th class="p-4">Frecuencia</th>
+                                <th class="p-4 text-right">Monto</th>
+                                <th class="p-4 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="all-transactions-list" class="divide-y divide-slate-100">
+                            <!-- Inyectado mediante JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== PESTAÑA: PRESUPUESTOS Y AHORRO ==================== -->
+        <section id="tab-budgets" class="space-y-6 hidden">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-800">Presupuestos y Metas de Ahorro</h2>
+                <p class="text-slate-500 text-sm">Controla tus límites mensuales de gasto y monitorea tus objetivos.</p>
+            </div>
+
+            <!-- Presupuestos por Categoría -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-lg">Límites de Presupuesto Mensual</h3>
+                        <p class="text-xs text-slate-500">Establece límites para evitar sobregastos</p>
+                    </div>
+                    <button onclick="openModalBudget()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg transition flex items-center space-x-1">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                        <span>Ajustar Presupuestos</span>
+                    </button>
+                </div>
+
+                <div id="budgets-progress-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Inyectado por JS -->
+                </div>
+            </div>
+
+            <!-- Respaldo e Importación / Exportación -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div class="border-b border-slate-100 pb-3">
+                    <h3 class="font-bold text-slate-800 text-lg">Respaldo y Migración de Datos</h3>
+                    <p class="text-xs text-slate-500">Exporta tu información a formato JSON/CSV o restaura tus datos fácilmente</p>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <button onclick="exportDataJSON()" class="px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-900 transition flex items-center space-x-2">
+                        <i class="fa-solid fa-download"></i>
+                        <span>Exportar JSON</span>
+                    </button>
+                    <button onclick="exportDataCSV()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition flex items-center space-x-2">
+                        <i class="fa-solid fa-file-csv"></i>
+                        <span>Exportar CSV</span>
+                    </button>
+                    <label class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition cursor-pointer flex items-center space-x-2">
+                        <i class="fa-solid fa-upload"></i>
+                        <span>Importar Respaldo (JSON)</span>
+                        <input type="file" id="import-file" accept=".json" onchange="importDataJSON(event)" class="hidden">
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== PESTAÑA: CONFIGURACIÓN SUPABASE / GIT ==================== -->
+        <section id="tab-config" class="space-y-6 hidden">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-800">Conexión con Supabase y GitHub</h2>
+                <p class="text-slate-500 text-sm">Aprende a integrar Supabase como base de datos en la nube y desplegar gratis esta web en GitHub Pages o Vercel.</p>
+            </div>
+
+            <!-- Formulario Credenciales Supabase -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center space-x-2">
+                    <i class="fa-solid fa-bolt text-emerald-500"></i>
+                    <span>Configurar Cliente Supabase</span>
+                </h3>
+                <p class="text-sm text-slate-600">Ingresa la URL del proyecto y la clave pública (Anon Key) obtenidas de tu panel de Supabase para activar la sincronización remota.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">SUPABASE URL</label>
+                        <input type="text" id="cfg-supabase-url" placeholder="https://xyz.supabase.co" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">SUPABASE ANON KEY</label>
+                        <input type="password" id="cfg-supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3 pt-2">
+                    <button onclick="saveSupabaseConfig()" class="px-5 py-2.5 bg-emerald-600 text-white font-medium rounded-xl text-sm hover:bg-emerald-700 transition flex items-center space-x-2">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Guardar y Probar Conexión</span>
+                    </button>
+                    <button onclick="disconnectSupabase()" class="px-4 py-2.5 bg-slate-100 text-slate-600 font-medium rounded-xl text-sm hover:bg-slate-200 transition">
+                        Desconectar / Volver a Local
+                    </button>
+                </div>
+            </div>
+
+            <!-- Guía Paso a Paso -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                <h3 class="font-bold text-slate-800 text-lg border-b border-slate-100 pb-3">Guía Paso a Paso para Despliegue</h3>
+
+                <!-- Paso 1 -->
+                <div class="space-y-2">
+                    <div class="flex items-center space-x-2 text-emerald-600 font-semibold text-sm">
+                        <span class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-xs">1</span>
+                        <span>Crear Proyecto en Supabase</span>
+                    </div>
+                    <p class="text-xs text-slate-600 pl-8">1. Ve a <a href="https://supabase.com" target="_blank" class="text-emerald-600 underline">supabase.com</a> y crea una cuenta gratuita.<br>2. Crea un nuevo proyecto. Copia la <strong>URL del proyecto</strong> y la <strong>Anon Key</strong> desde <em>Project Settings -> API</em> y pégalas arriba.</p>
+                </div>
+
+                <!-- Paso 2 -->
+                <div class="space-y-2">
+                    <div class="flex items-center space-x-2 text-emerald-600 font-semibold text-sm">
+                        <span class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-xs">2</span>
+                        <span>Crear Tablas en Supabase (SQL Script)</span>
+                    </div>
+                    <p class="text-xs text-slate-600 pl-8">Ve al menú <strong>SQL Editor</strong> dentro de tu panel de Supabase y ejecuta la siguiente consulta SQL para estructurar la base de datos:</p>
+
+                    <div class="pl-8 relative">
+                        <pre class="bg-slate-900 text-slate-200 p-4 rounded-xl text-xs overflow-x-auto font-mono custom-scrollbar">
+-- 1. Tabla de Categorías
+CREATE TABLE categories (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('ingreso', 'gasto')),
+  icon TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. Tabla de Transacciones
+CREATE TABLE transactions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  amount NUMERIC(10,2) NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('ingreso', 'gasto')),
+  category TEXT NOT NULL,
+  description TEXT,
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  frequency TEXT DEFAULT 'único',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 3. Tabla de Presupuestos
+CREATE TABLE budgets (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  category TEXT UNIQUE NOT NULL,
+  monthly_limit NUMERIC(10,2) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Habilitar Políticas de Lectura/Escritura Pública (Desarrollo/Uso Personal)
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Permitir todo a usuarios anonimos" ON categories FOR ALL USING (true);
+CREATE POLICY "Permitir todo a usuarios anonimos" ON transactions FOR ALL USING (true);
+CREATE POLICY "Permitir todo a usuarios anonimos" ON budgets FOR ALL USING (true);
+</pre>
+                    </div>
+                </div>
+
+                <!-- Paso 3 -->
+                <div class="space-y-2">
+                    <div class="flex items-center space-x-2 text-emerald-600 font-semibold text-sm">
+                        <span class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-xs">3</span>
+                        <span>Publicar en GitHub / Vercel</span>
+                    </div>
+                    <div class="text-xs text-slate-600 pl-8 space-y-1">
+                        <p>1. Crea un repositorio en GitHub llamado <code>mi-contabilidad-hogar</code>.</p>
+                        <p>2. Guarda este código HTML en un archivo denominado <code>index.html</code>.</p>
+                        <p>3. Sube el archivo al repositorio e interactúa mediante comandos de Git:</p>
+                        <pre class="bg-slate-100 p-3 rounded-lg text-slate-800 font-mono mt-1">git init
+git add index.html
+git commit -m "Inicializar app de contabilidad del hogar"
+git branch -M main
+git remote add origin https://github.com/TU_USUARIO/mi-contabilidad-hogar.git
+git push -u origin main</pre>
+                        <p class="pt-2">4. Activa <strong>GitHub Pages</strong> en la sección <em>Settings -> Pages</em> seleccionando la rama <code>main</code>, ¡y tu app estará en vivo gratis!</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL: Nueva / Editar Transacción -->
+    <div id="modal-transaction" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 id="modal-tx-title" class="font-bold text-slate-800 text-lg">Nueva Transacción</h3>
+                <button onclick="closeModalTransaction()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+
+            <form id="form-transaction" onsubmit="saveTransaction(event)" class="space-y-3">
+                <input type="hidden" id="tx-id">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tipo Movimiento</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" id="type-gasto" onclick="setTxType('gasto')" class="py-2 text-sm font-semibold rounded-xl border border-rose-200 bg-rose-50 text-rose-700">Gasto</button>
+                        <button type="button" id="type-ingreso" onclick="setTxType('ingreso')" class="py-2 text-sm font-semibold rounded-xl border border-slate-200 bg-slate-50 text-slate-600">Ingreso</button>
+                    </div>
+                    <input type="hidden" id="tx-type" value="gasto">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Monto ($)</label>
+                    <input type="number" step="0.01" id="tx-amount" required placeholder="0.00" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Categoría</label>
+                    <select id="tx-category" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                        <!-- Cargado por JS -->
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Descripción</label>
+                    <input type="text" id="tx-description" required placeholder="Ej. Mercado semanal, Pago luz..." class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Fecha</label>
+                        <input type="date" id="tx-date" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Periodicidad</label>
+                        <select id="tx-frequency" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                            <option value="único">Único</option>
+                            <option value="mensual">Mensual</option>
+                            <option value="semanal">Semanal</option>
+                            <option value="anual">Anual</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-3">
+                    <button type="button" onclick="closeModalTransaction()" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-200">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Ajustar Presupuestos -->
+    <div id="modal-budget" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-800 text-lg">Ajustar Limite de Presupuesto</h3>
+                <button onclick="closeModalBudget()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+
+            <form id="form-budget" onsubmit="saveBudget(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Categoría</label>
+                    <select id="budget-category" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                        <!-- Categorías de gasto por JS -->
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Límite Mensual ($)</label>
+                    <input type="number" step="0.01" id="budget-limit" required placeholder="500.00" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-3">
+                    <button type="button" onclick="closeModalBudget()" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-200">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700">Establecer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Categorías predeterminadas del hogar
+        const DEFAULT_CATEGORIES = [
+            { name: 'Alimentación', type: 'gasto', icon: 'fa-utensils' },
+            { name: 'Servicios Básicos', type: 'gasto', icon: 'fa-bolt' },
+            { name: 'Vivienda', type: 'gasto', icon: 'fa-house' },
+            { name: 'Transporte', type: 'gasto', icon: 'fa-car' },
+            { name: 'Educación', type: 'gasto', icon: 'fa-graduation-cap' },
+            { name: 'Entretenimiento', type: 'gasto', icon: 'fa-gamepad' },
+            { name: 'Gastos Hormiga', type: 'gasto', icon: 'fa-mug-hot' },
+            { name: 'Salud', type: 'gasto', icon: 'fa-heart-pulse' },
+            { name: 'Sueldo/Salario', type: 'ingreso', icon: 'fa-money-bill-wave' },
+            { name: 'Ventas/Freelance', type: 'ingreso', icon: 'fa-laptop' },
+            { name: 'Otros Ingresos', type: 'ingreso', icon: 'fa-piggy-bank' }
+        ];
+
+        // Datos iniciales demo para arranque
+        const INITIAL_TRANSACTIONS = [
+            { id: '1', amount: 2500.00, type: 'ingreso', category: 'Sueldo/Salario', description: 'Nómina Quincenal', date: new Date().toISOString().split('T')[0], frequency: 'mensual' },
+            { id: '2', amount: 350.00, type: 'gasto', category: 'Alimentación', description: 'Supermercado Semanal', date: new Date().toISOString().split('T')[0], frequency: 'semanal' },
+            { id: '3', amount: 80.00, type: 'gasto', category: 'Servicios Básicos', description: 'Servicio de Internet', date: new Date().toISOString().split('T')[0], frequency: 'mensual' },
+            { id: '4', amount: 25.00, type: 'gasto', category: 'Gastos Hormiga', description: 'Cafés y Snacks', date: new Date().toISOString().split('T')[0], frequency: 'único' }
+        ];
+
+        const INITIAL_BUDGETS = [
+            { category: 'Alimentación', monthly_limit: 600.00 },
+            { category: 'Servicios Básicos', monthly_limit: 150.00 },
+            { category: 'Gastos Hormiga', monthly_limit: 50.00 },
+            { category: 'Entretenimiento', monthly_limit: 150.00 }
+        ];
+
+        // Estado Global
+        let transactions = JSON.parse(localStorage.getItem('hh_transactions')) || INITIAL_TRANSACTIONS;
+        let budgets = JSON.parse(localStorage.getItem('hh_budgets')) || INITIAL_BUDGETS;
+        let categories = DEFAULT_CATEGORIES;
+        let supabaseClient = null;
+        let isSupabaseActive = false;
+
+        // Chart Instances
+        let categoryChartInstance = null;
+        let barChartInstance = null;
+
+        // Inicialización
+        window.onload = function() {
+            // Cargar fecha actual por defecto en el modal
+            document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+            
+            // Intentar conectar a Supabase si existen credenciales guardadas
+            const savedUrl = localStorage.getItem('hh_supabase_url');
+            const savedKey = localStorage.getItem('hh_supabase_key');
+            
+            if (savedUrl && savedKey) {
+                document.getElementById('cfg-supabase-url').value = savedUrl;
+                document.getElementById('cfg-supabase-key').value = savedKey;
+                initSupabase(savedUrl, savedKey);
+            } else {
+                updateUIState();
+            }
+        };
+
+        // Inicializar Supabase
+        async function initSupabase(url, key) {
+            try {
+                supabaseClient = supabase.createClient(url, key);
+                // Probar consulta rápida
+                const { data, error } = await supabaseClient.from('transactions').select('count', { count: 'exact' });
+                
+                if (error) throw error;
+
+                isSupabaseActive = true;
+                updateConnectionBadge(true);
+                document.getElementById('demo-mode-alert').classList.add('hidden');
+                
+                // Cargar datos desde Supabase
+                await syncDataFromSupabase();
+            } catch (err) {
+                console.warn("No se pudo conectar con Supabase:", err.message);
+                isSupabaseActive = false;
+                updateConnectionBadge(false);
+            }
+        }
+
+        function updateConnectionBadge(connected) {
+            const ping = document.getElementById('status-ping');
+            const dot = document.getElementById('status-dot');
+            const title = document.getElementById('status-title');
+            const sub = document.getElementById('status-sub');
+
+            if (connected) {
+                ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+                dot.className = "relative inline-flex rounded-full h-3 w-3 bg-emerald-500";
+                title.innerText = "Supabase Conectado";
+                title.className = "font-semibold text-emerald-400";
+                sub.innerText = "Sincronizado en la nube";
+            } else {
+                ping.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75";
+                dot.className = "relative inline-flex rounded-full h-3 w-3 bg-amber-500";
+                title.innerText = "Modo Local (Demo)";
+                title.className = "font-semibold text-slate-300";
+                sub.innerText = "Conecta Supabase para sync";
+            }
+        }
+
+        async function syncDataFromSupabase() {
+            if (!isSupabaseActive) return;
+
+            try {
+                // Obtener transacciones
+                const { data: txData } = await supabaseClient.from('transactions').select('*').order('date', { ascending: false });
+                if (txData) transactions = txData;
+
+                // Obtener presupuestos
+                const { data: bgData } = await supabaseClient.from('budgets').select('*');
+                if (bgData) budgets = bgData;
+
+                updateUIState();
+            } catch (error) {
+                console.error("Error sincronizando:", error);
+            }
+        }
+
+        function saveSupabaseConfig() {
+            const url = document.getElementById('cfg-supabase-url').value.trim();
+            const key = document.getElementById('cfg-supabase-key').value.trim();
+
+            if (!url || !key) {
+                alert("Por favor ingresa tanto la URL como la Anon Key de Supabase.");
+                return;
+            }
+
+            localStorage.setItem('hh_supabase_url', url);
+            localStorage.setItem('hh_supabase_key', key);
+
+            initSupabase(url, key).then(() => {
+                if (isSupabaseActive) {
+                    alert("¡Conexión con Supabase establecida con éxito!");
+                } else {
+                    alert("No se pudo conectar a Supabase. Verifica tus credenciales y que las tablas SQL existan.");
+                }
+            });
+        }
+
+        function disconnectSupabase() {
+            localStorage.removeItem('hh_supabase_url');
+            localStorage.removeItem('hh_supabase_key');
+            document.getElementById('cfg-supabase-url').value = '';
+            document.getElementById('cfg-supabase-key').value = '';
+            supabaseClient = null;
+            isSupabaseActive = false;
+            updateConnectionBadge(false);
+            document.getElementById('demo-mode-alert').classList.remove('hidden');
+            updateUIState();
+        }
+
+        // Navegación entre pestañas
+        function switchTab(tabId) {
+            document.querySelectorAll('main > section').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-emerald-400', 'bg-slate-800');
+                btn.classList.add('text-slate-400');
+            });
+
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            activeBtn.classList.add('text-emerald-400', 'bg-slate-800');
+            activeBtn.classList.remove('text-slate-400');
+        }
+
+        // Actualizar UI
+        function updateUIState() {
+            // Guardar localmente
+            localStorage.setItem('hh_transactions', JSON.stringify(transactions));
+            localStorage.setItem('hh_budgets', JSON.stringify(budgets));
+
+            renderKPIs();
+            renderCharts();
+            renderRecentTransactions();
+            renderTransactionsTable();
+            renderCategoryOptions();
+            renderBudgets();
+        }
+
+        // Cálculo y Render de KPIs
+        function renderKPIs() {
+            const totalIncomes = transactions
+                .filter(t => t.type === 'ingreso')
+                .reduce((acc, t) => acc + parseFloat(t.amount), 0);
+
+            const totalExpenses = transactions
+                .filter(t => t.type === 'gasto')
+                .reduce((acc, t) => acc + parseFloat(t.amount), 0);
+
+            const balance = totalIncomes - totalExpenses;
+            const savingsRate = totalIncomes > 0 ? Math.max(0, ((totalIncomes - totalExpenses) / totalIncomes) * 100) : 0;
+
+            document.getElementById('kpi-incomes').innerText = `$${totalIncomes.toFixed(2)}`;
+            document.getElementById('kpi-expenses').innerText = `$${totalExpenses.toFixed(2)}`;
+            document.getElementById('kpi-balance').innerText = `$${balance.toFixed(2)}`;
+            document.getElementById('kpi-savings-rate').innerText = `${savingsRate.toFixed(1)}%`;
+
+            const balanceSubtitle = document.getElementById('kpi-balance-subtitle');
+            if (balance < 0) {
+                balanceSubtitle.innerText = '⚠️ Déficit actual';
+                balanceSubtitle.className = 'text-xs text-rose-500 font-medium mt-1 block';
+            } else {
+                balanceSubtitle.innerText = 'Balance total acumulado';
+                balanceSubtitle.className = 'text-xs text-slate-500 mt-1 block';
+            }
+        }
+
+        // Render Gráficos
+        function renderCharts() {
+            // 1. Gráfico de Categorías (Doughnut)
+            const expenseMap = {};
+            transactions.filter(t => t.type === 'gasto').forEach(t => {
+                expenseMap[t.category] = (expenseMap[t.category] || 0) + parseFloat(t.amount);
+            });
+
+            const categoryLabels = Object.keys(expenseMap);
+            const categoryData = Object.values(expenseMap);
+
+            const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+            if (categoryChartInstance) categoryChartInstance.destroy();
+
+            categoryChartInstance = new Chart(categoryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: categoryLabels.length ? categoryLabels : ['Sin datos'],
+                    datasets: [{
+                        data: categoryData.length ? categoryData : [1],
+                        backgroundColor: [
+                            '#ef4444', '#f97316', '#f59e0b', '#10b981', '#06b6d4', '#6366f1', '#8b5cf6', '#ec4899'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+
+            // 2. Gráfico de Barras Comparativo
+            const totalIncomes = transactions.filter(t => t.type === 'ingreso').reduce((acc, t) => acc + parseFloat(t.amount), 0);
+            const totalExpenses = transactions.filter(t => t.type === 'gasto').reduce((acc, t) => acc + parseFloat(t.amount), 0);
+
+            const barCtx = document.getElementById('barChart').getContext('2d');
+            if (barChartInstance) barChartInstance.destroy();
+
+            barChartInstance = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Ingresos Totales', 'Gastos Totales'],
+                    datasets: [{
+                        label: 'Monto ($)',
+                        data: [totalIncomes, totalExpenses],
+                        backgroundColor: ['#22c55e', '#f43f5e'],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        // Render Transacciones Recientes en Dashboard
+        function renderRecentTransactions() {
+            const list = document.getElementById('recent-transactions-list');
+            list.innerHTML = '';
+
+            const recent = [...transactions].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+
+            if (recent.length === 0) {
+                list.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">No hay transacciones registradas</td></tr>`;
+                return;
+            }
+
+            recent.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/50';
+                tr.innerHTML = `
+                    <td class="p-3 text-xs text-slate-500">${t.date}</td>
+                    <td class="p-3 font-medium text-slate-700">${t.category}</td>
+                    <td class="p-3 text-slate-500">${t.description}</td>
+                    <td class="p-3 text-right font-semibold ${t.type === 'ingreso' ? 'text-emerald-600' : 'text-rose-600'}">
+                        ${t.type === 'ingreso' ? '+' : '-'}$${parseFloat(t.amount).toFixed(2)}
+                    </td>
+                `;
+                list.appendChild(tr);
+            });
+        }
+
+        // Render Tabla de Transacciones con Filtro
+        function renderTransactionsTable() {
+            const list = document.getElementById('all-transactions-list');
+            const search = document.getElementById('filter-search').value.toLowerCase();
+            const typeFilter = document.getElementById('filter-type').value;
+            const catFilter = document.getElementById('filter-category').value;
+
+            list.innerHTML = '';
+
+            const filtered = transactions.filter(t => {
+                const matchSearch = t.description.toLowerCase().includes(search) || t.category.toLowerCase().includes(search);
+                const matchType = typeFilter === 'all' || t.type === typeFilter;
+                const matchCat = catFilter === 'all' || t.category === catFilter;
+                return matchSearch && matchType && matchCat;
+            }).sort((a,b) => new Date(b.date) - new Date(a.date));
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">No se encontraron movimientos.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/50';
+                tr.innerHTML = `
+                    <td class="p-4 text-xs text-slate-500">${t.date}</td>
+                    <td class="p-4">
+                        <span class="px-2.5 py-1 text-xs font-semibold rounded-full ${t.type === 'ingreso' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}">
+                            ${t.type.toUpperCase()}
+                        </span>
+                    </td>
+                    <td class="p-4 font-medium text-slate-700">${t.category}</td>
+                    <td class="p-4 text-slate-600">${t.description}</td>
+                    <td class="p-4 text-xs text-slate-400 capitalize">${t.frequency || 'único'}</td>
+                    <td class="p-4 text-right font-bold ${t.type === 'ingreso' ? 'text-emerald-600' : 'text-rose-600'}">
+                        ${t.type === 'ingreso' ? '+' : '-'}$${parseFloat(t.amount).toFixed(2)}
+                    </td>
+                    <td class="p-4 text-center space-x-2">
+                        <button onclick="editTransaction('${t.id}')" class="text-slate-400 hover:text-emerald-600"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteTransaction('${t.id}')" class="text-slate-400 hover:text-rose-600"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+                list.appendChild(tr);
+            });
+        }
+
+        // Render Opciones de Categoría en Selects
+        function renderCategoryOptions() {
+            const selectFilter = document.getElementById('filter-category');
+            const selectTx = document.getElementById('tx-category');
+            const selectBudget = document.getElementById('budget-category');
+
+            const currentType = document.getElementById('tx-type').value;
+
+            selectFilter.innerHTML = '<option value="all">Todas las categorías</option>';
+            selectTx.innerHTML = '';
+            selectBudget.innerHTML = '';
+
+            categories.forEach(c => {
+                selectFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+                if (c.type === currentType) {
+                    selectTx.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+                }
+                if (c.type === 'gasto') {
+                    selectBudget.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+                }
+            });
+        }
+
+        // Render Presupuestos y Metas
+        function renderBudgets() {
+            const container = document.getElementById('budgets-progress-list');
+            container.innerHTML = '';
+
+            if (budgets.length === 0) {
+                container.innerHTML = `<p class="text-sm text-slate-400 col-span-2">No has configurado presupuestos aún.</p>`;
+                return;
+            }
+
+            budgets.forEach(b => {
+                const spent = transactions
+                    .filter(t => t.type === 'gasto' && t.category === b.category)
+                    .reduce((acc, t) => acc + parseFloat(t.amount), 0);
+
+                const percent = Math.min(100, Math.round((spent / b.monthly_limit) * 100));
+                let colorClass = 'bg-emerald-500';
+                if (percent > 75) colorClass = 'bg-amber-500';
+                if (percent >= 100) colorClass = 'bg-rose-500';
+
+                const card = document.createElement('div');
+                card.className = 'p-4 rounded-xl border border-slate-100 bg-slate-50/50 space-y-2';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between text-sm">
+                        <span class="font-bold text-slate-700">${b.category}</span>
+                        <span class="text-xs font-semibold ${percent >= 100 ? 'text-rose-600' : 'text-slate-500'}">
+                            $${spent.toFixed(2)} de $${parseFloat(b.monthly_limit).toFixed(2)} (${percent}%)
+                        </span>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                        <div class="h-2.5 rounded-full ${colorClass} transition-all duration-300" style="width: ${percent}%"></div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Modales y Gestión de Datos
+        function openModalTransaction() {
+            document.getElementById('form-transaction').reset();
+            document.getElementById('tx-id').value = '';
+            document.getElementById('modal-tx-title').innerText = 'Nueva Transacción';
+            document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+            setTxType('gasto');
+            document.getElementById('modal-transaction').classList.remove('hidden');
+        }
+
+        function closeModalTransaction() {
+            document.getElementById('modal-transaction').classList.add('hidden');
+        }
+
+        function setTxType(type) {
+            document.getElementById('tx-type').value = type;
+            const btnGasto = document.getElementById('type-gasto');
+            const btnIngreso = document.getElementById('type-ingreso');
+
+            if (type === 'gasto') {
+                btnGasto.className = 'py-2 text-sm font-semibold rounded-xl border border-rose-200 bg-rose-50 text-rose-700';
+                btnIngreso.className = 'py-2 text-sm font-semibold rounded-xl border border-slate-200 bg-slate-50 text-slate-600';
+            } else {
+                btnIngreso.className = 'py-2 text-sm font-semibold rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700';
+                btnGasto.className = 'py-2 text-sm font-semibold rounded-xl border border-slate-200 bg-slate-50 text-slate-600';
+            }
+            renderCategoryOptions();
+        }
+
+        async function saveTransaction(e) {
+            e.preventDefault();
+            const id = document.getElementById('tx-id').value || Date.now().toString();
+            const newTx = {
+                id,
+                amount: parseFloat(document.getElementById('tx-amount').value),
+                type: document.getElementById('tx-type').value,
+                category: document.getElementById('tx-category').value,
+                description: document.getElementById('tx-description').value,
+                date: document.getElementById('tx-date').value,
+                frequency: document.getElementById('tx-frequency').value
+            };
+
+            const index = transactions.findIndex(t => t.id === id);
+
+            if (isSupabaseActive) {
+                if (index >= 0) {
+                    await supabaseClient.from('transactions').update(newTx).eq('id', id);
+                } else {
+                    await supabaseClient.from('transactions').insert([newTx]);
+                }
+                await syncDataFromSupabase();
+            } else {
+                if (index >= 0) {
+                    transactions[index] = newTx;
+                } else {
+                    transactions.push(newTx);
+                }
+                updateUIState();
+            }
+
+            closeModalTransaction();
+        }
+
+        function editTransaction(id) {
+            const tx = transactions.find(t => t.id === id);
+            if (!tx) return;
+
+            openModalTransaction();
+            document.getElementById('modal-tx-title').innerText = 'Editar Transacción';
+            document.getElementById('tx-id').value = tx.id;
+            setTxType(tx.type);
+            document.getElementById('tx-amount').value = tx.amount;
+            document.getElementById('tx-category').value = tx.category;
+            document.getElementById('tx-description').value = tx.description;
+            document.getElementById('tx-date').value = tx.date;
+            document.getElementById('tx-frequency').value = tx.frequency || 'único';
+        }
+
+        async function deleteTransaction(id) {
+            if (isSupabaseActive) {
+                await supabaseClient.from('transactions').delete().eq('id', id);
+                await syncDataFromSupabase();
+            } else {
+                transactions = transactions.filter(t => t.id !== id);
+                updateUIState();
+            }
+        }
+
+        function openModalBudget() {
+            document.getElementById('modal-budget').classList.remove('hidden');
+        }
+
+        function closeModalBudget() {
+            document.getElementById('modal-budget').classList.add('hidden');
+        }
+
+        async function saveBudget(e) {
+            e.preventDefault();
+            const category = document.getElementById('budget-category').value;
+            const monthly_limit = parseFloat(document.getElementById('budget-limit').value);
+
+            const newBudget = { category, monthly_limit };
+            const idx = budgets.findIndex(b => b.category === category);
+
+            if (isSupabaseActive) {
+                if (idx >= 0) {
+                    await supabaseClient.from('budgets').update({ monthly_limit }).eq('category', category);
+                } else {
+                    await supabaseClient.from('budgets').insert([newBudget]);
+                }
+                await syncDataFromSupabase();
+            } else {
+                if (idx >= 0) {
+                    budgets[idx].monthly_limit = monthly_limit;
+                } else {
+                    budgets.push(newBudget);
+                }
+                updateUIState();
+            }
+
+            closeModalBudget();
+        }
+
+        // Exportar e Importar Respaldo
+        function exportDataJSON() {
+            const backup = { transactions, budgets, categories };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backup, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `respaldo_hogar_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function exportDataCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,ID,Fecha,Tipo,Categoria,Descripcion,Monto,Frecuencia\n";
+            transactions.forEach(t => {
+                csvContent += `"${t.id}","${t.date}","${t.type}","${t.category}","${t.description}",${t.amount},"${t.frequency || 'único'}"\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `transacciones_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+
+        function importDataJSON(event) {
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.transactions) transactions = parsed.transactions;
+                    if (parsed.budgets) budgets = parsed.budgets;
+                    updateUIState();
+                    alert("¡Datos importados con éxito!");
+                } catch (err) {
+                    alert("Error al leer el archivo JSON.");
+                }
+            };
+            fileReader.readAsText(event.target.files[0]);
+        }
+    </script>
+</body>
+</html>
